@@ -1,0 +1,144 @@
+#!/usr/bin/perl -I/var/wwwsites/SharePerltopus/perl-lib
+
+use strict;
+use warnings;
+use Data::Dumper;
+use SharePoint::Connection;
+use SharePoint::CommandLine;
+
+my %opts = SharePoint::CommandLine->get_options( 
+	{ 
+		fields=>"",
+		list=>"",
+		view=>"",
+	}, 
+	{ 
+		"fields-file:s" => "fields",
+		"list:s" => "list",
+		"view:s" => "view",
+	} 
+);
+my( $action ) = @ARGV;
+
+binmode( STDOUT, ":utf8" );
+
+$opts{"fields-list"} = [];
+if( $opts{fields} ne "" )
+{
+	open( F, $opts{fields} ) || die "can't read '$opts{fields}': $!";
+	while( my $line = <F> )
+	{
+		chomp $line;
+		push @{$opts{"fields-list"}}, $line;
+	}
+	close F;
+}
+
+my $spc = new SharePoint::Connection( %opts );
+
+if( $action eq "list-to-tsv" )
+{
+	action_list_to_tsv( $spc, %opts );
+}
+elsif( $action eq "collections" )
+{
+	action_collections( $spc, %opts );
+}
+elsif( $action eq "list-fields" )
+{
+	action_list_fields( $spc, %opts );
+}
+else
+{
+	die "Unknown action: $action";
+}
+exit;
+
+
+sub action_collections
+{
+	my( $spc, %opts ) = @_;
+
+	my @result = $spc->GetListCollection();
+	foreach my $data (@result) 
+	{
+		print $data->{ID}." - ".$data->{Title}."\n";
+	}
+}
+
+sub action_list_fields
+{
+	my( $spc, %opts ) = @_;
+
+	if( $opts{list} eq "" ) { die "list_fields needs --list to be set"; }
+	my $map = {};
+	my $listinfo =  $spc->GetList( $opts{list} );
+	foreach my $field ( @{$listinfo->{fields}} )
+	{
+		print sprintf( "%34s: %s\n", $field->{StaticName}, $field->{DisplayName} );
+	}
+}
+
+sub action_list_to_tsv
+{
+	my( $spc, %opts ) = @_;
+
+	if( $opts{list} eq "" ) { die "list_to_tsv needs --list to be set"; }
+	my $map = {};
+	my $listinfo =  $spc->GetList( $opts{list} );
+	my $formats = {};
+	foreach my $field ( @{$listinfo->{fields}} )
+	{
+		$map->{"ows_".$field->{StaticName}} = $field->{DisplayName};
+		$formats->{"ows_".$field->{StaticName}} = $field->{Format} || "none";
+	}
+	if( $opts{view} eq "" ) { delete $opts{view}; }
+
+	my @items =  $spc->GetListItems( $opts{list}, $opts{view} );
+
+	my @fields = @{ $opts{"fields-list"} };
+	if( !scalar @fields )
+	{
+		my $f={};
+		foreach my $item ( @items )
+		{
+			CELL: foreach my $k ( sort keys %{$item} )
+			{
+				next CELL unless defined $map->{$k};
+				$f->{$map->{$k}} = 1;
+			}
+		}
+		@fields = sort keys %$f;
+	}
+	
+	print join( "\t", @fields )."\n";
+	foreach my $item ( @items )
+	{
+		my $cells = {};
+		CELL: foreach my $k ( sort keys %{$item} )
+		{
+			next CELL unless defined $map->{$k};
+			my $v = $item->{$k};
+			my $name = $map->{$k};
+			$v =~ s/^.*;#//;
+			# url & email fields need more cleaning, but for now:
+			# mailto:hs8@soton.ac.uk, hs8@soton.ac.uk
+			if( $formats->{$k} eq "Hyperlink" )
+			{
+				$v=~s/^[^,]*,//;
+			}
+
+			$cells->{$name} = $v;
+		}
+		my @values = ();
+		foreach my $cell_name ( @fields )
+		{
+			my $v = $cells->{$cell_name};
+			$v = "" unless defined $v;
+			push @values, $v;
+		}
+		print join( "\t", @values )."\n";
+	}
+}
+
+
