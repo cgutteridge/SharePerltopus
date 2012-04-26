@@ -36,7 +36,11 @@ if( $opts{fields} ne "" )
 
 my $spc = new SharePoint::Connection( %opts );
 
-if( $action eq "list-to-tsv" )
+if( !defined $action )
+{
+	die "No action specified";
+}
+elsif( $action eq "list-to-tsv" )
 {
 	action_list_to_tsv( $spc, %opts );
 }
@@ -44,16 +48,43 @@ elsif( $action eq "collections" )
 {
 	action_collections( $spc, %opts );
 }
+elsif( $action eq "list-info" )
+{
+	action_list_info( $spc, %opts );
+}
 elsif( $action eq "list-fields" )
 {
 	action_list_fields( $spc, %opts );
 }
 else
 {
-	die "Unknown action: $action";
+	print STDERR "Unknown action: $action\n\n";
+	print STDERR usage();
+
+	exit 1;
 }
 exit;
 
+sub usage
+{
+	return <<END
+shareperltopus collections --site <site-url>
+shareperltopus list-info --site <site-url> --list <list-id>
+shareperltopus list-fields --site <site-url> --list <list-id> 
+shareperltopus list-to-tsv --site <site-url> --list <list-id> [--fields-file <file>] [--view <view>]
+END
+}
+
+sub action_list_info
+{
+	my( $spc, %opts ) = @_;
+
+	if( $opts{list} eq "" ) { die "list_to_tsv needs --list to be set"; }
+	my $map = {};
+	my $listinfo =  $spc->GetList( $opts{list} );
+	
+	print Dumper( $listinfo );
+}
 
 sub action_collections
 {
