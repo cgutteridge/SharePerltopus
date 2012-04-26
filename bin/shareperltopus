@@ -70,9 +70,22 @@ elsif( $action eq "attachment-collection" )
 }
 else
 {
-	die "Unknown action: $action";
+	print STDERR "Unknown action: $action\n\n";
+	print STDERR usage();
+
+	exit 1;
 }
 exit;
+
+sub usage
+{
+	return <<END
+shareperltopus collections --site <site-url>
+shareperltopus list-info --site <site-url> --list <list-id>
+shareperltopus list-fields --site <site-url> --list <list-id> 
+shareperltopus list-to-tsv --site <site-url> --list <list-id> [--fields-file <file>] [--view <view>]
+END
+}
 
 sub action_list_info
 {
