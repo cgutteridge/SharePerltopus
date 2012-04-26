@@ -11,11 +11,15 @@ my %opts = SharePoint::CommandLine->get_options(
 		fields=>"",
 		list=>"",
 		view=>"",
+		item=>"",
+		url=>"",
 	}, 
 	{ 
 		"fields-file:s" => "fields",
 		"list:s" => "list",
 		"view:s" => "view",
+		"item:s" => "item",
+		"url:s" => "url",
 	} 
 );
 my( $action ) = @ARGV;
@@ -56,6 +60,14 @@ elsif( $action eq "list-fields" )
 {
 	action_list_fields( $spc, %opts );
 }
+elsif( $action eq "get-item" )
+{
+	action_get_item( $spc, %opts );
+}
+elsif( $action eq "attachment-collection" )
+{
+	action_attachment_collection( $spc, %opts );
+}
 else
 {
 	print STDERR "Unknown action: $action\n\n";
@@ -81,7 +93,7 @@ sub action_list_info
 
 	if( $opts{list} eq "" ) { die "list_to_tsv needs --list to be set"; }
 	my $map = {};
-	my $listinfo =  $spc->GetList( $opts{list} );
+	my $listinfo = $spc->GetList( $opts{list} );
 	
 	print Dumper( $listinfo );
 }
@@ -97,13 +109,33 @@ sub action_collections
 	}
 }
 
+sub action_get_item
+{
+	my( $spc, %opts ) = @_;
+
+	if( $opts{url} eq "" ) { die "attachment_collection needs --url to be set"; }
+
+	my $item = $spc->GetItem( $opts{url} );
+	print $item;
+}
+
+sub action_attachment_collection
+{
+	my( $spc, %opts ) = @_;
+
+	if( $opts{list} eq "" ) { die "attachment_collection needs --list to be set"; }
+	if( $opts{item} eq "" ) { die "attachment_collection needs --item to be set"; }
+	my $map = {};
+	my $listinfo = $spc->GetAttachmentCollection( $opts{list}, $opts{item} );
+}
+
 sub action_list_fields
 {
 	my( $spc, %opts ) = @_;
 
 	if( $opts{list} eq "" ) { die "list_fields needs --list to be set"; }
 	my $map = {};
-	my $listinfo =  $spc->GetList( $opts{list} );
+	my $listinfo = spc->GetList( $opts{list} );
 	foreach my $field ( @{$listinfo->{fields}} )
 	{
 		print sprintf( "%34s: %s\n", $field->{StaticName}, $field->{DisplayName} );
@@ -116,7 +148,7 @@ sub action_list_to_tsv
 
 	if( $opts{list} eq "" ) { die "list_to_tsv needs --list to be set"; }
 	my $map = {};
-	my $listinfo =  $spc->GetList( $opts{list} );
+	my $listinfo = $spc->GetList( $opts{list} );
 	my $formats = {};
 	foreach my $field ( @{$listinfo->{fields}} )
 	{
@@ -125,7 +157,7 @@ sub action_list_to_tsv
 	}
 	if( $opts{view} eq "" ) { delete $opts{view}; }
 
-	my @items =  $spc->GetListItems( $opts{list}, $opts{view} );
+	my @items = $spc->GetListItems( $opts{list}, $opts{view} );
 
 	my @fields = @{ $opts{"fields-list"} };
 	if( !scalar @fields )

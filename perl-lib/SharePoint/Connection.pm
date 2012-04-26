@@ -5,6 +5,7 @@ use LWP::Debug;
 use Authen::NTLM;
 use SOAP::Lite on_action => sub { "$_[0]$_[1]"; };
 use Data::Dumper;
+use MIME::Base64;
 
 use strict;
 use warnings;
@@ -14,6 +15,7 @@ use warnings;
 # -- endpoint
 # -- username
 # -- password
+# -- site
 # optional
 # -- debug (default: 0)
 # -- on_error (default: ::die)
@@ -34,19 +36,40 @@ sub new
 		SOAP::Lite->import(+trace => 'all');
 	}
 
-	if( !defined $opts{endpoint} )
-	{
-		$opts{endpoint} = $opts{site}."/_vti_bin/lists.asmx";
-	}
-
-	$self->{soap} = SOAP::Lite->proxy( $opts{endpoint}, keep_alive => 1);
-	$self->{soap}->uri("http://schemas.microsoft.com/sharepoint/soap/");
-
 	# There's got to be a better way, but this does appear to work!
 	eval "sub SOAP::Transport::HTTP::Client::get_basic_credentials { return ('$opts{username}' => '$opts{password}') };"; 
 	
 	return $self;
 }
+
+sub getListsEndpoint
+{
+	my( $self ) = @_;
+
+	if( !defined $self->{soap}->{lists} )
+	{
+		my $endpoint = $self->{opts}->{site}."/_vti_bin/lists.asmx";
+		$self->{soap}->{lists} = SOAP::Lite->proxy( $endpoint, keep_alive => 1);
+		$self->{soap}->{lists}->uri("http://schemas.microsoft.com/sharepoint/soap/");
+	}
+
+	return $self->{soap}->{lists};
+}
+
+sub getCopyEndpoint
+{
+	my( $self ) = @_;
+
+	if( !defined $self->{soap}->{copy} )
+	{
+		my $endpoint = $self->{opts}->{site}."/_vti_bin/copy.asmx";
+		$self->{soap}->{copy} = SOAP::Lite->proxy( $endpoint, keep_alive => 1);
+		$self->{soap}->{copy}->uri("http://schemas.microsoft.com/sharepoint/soap/");
+	}
+
+	return $self->{soap}->{copy};
+}
+
 
 sub error
 {
@@ -64,12 +87,36 @@ sub soapError
 	return $self->error( $msg );
 }
 
+sub GetItem
+{
+	my( $self, $Url ) = @_;
+	
+	my $in_Url = SOAP::Data::name('Url' => $Url );
+
+	my $call = $self->getCopyEndpoint()->GetItem($in_Url);
+	$self->soapError($call) if defined $call->fault();
+
+	return MIME::Base64::decode( $call->dataof('//GetItemResponse/Stream' )->value() );
+}
+
+sub GetAttachmentCollection
+{
+	my( $self, $listName, $listItemID ) = @_;
+	
+	my $in_listName = SOAP::Data::name('listName' => $listName );
+	my $in_listItemID = SOAP::Data::name( 'listItemID' => $listItemID )->type( 'string' );
+
+	my $call = $self->getListsEndpoint()->GetAttachmentCollection($in_listName, $in_listItemID);
+	$self->soapError($call) if defined $call->fault();
+	
+	return $self->attrFromList( $call->dataof('//GetAttachmentCollectionResponse' ) );
+}
 
 sub GetListCollection
 {
 	my( $self ) = @_;
 	
-	my $call = $self->{soap}->GetListCollection();
+	my $call = $self->getListsEndpoint()->GetListCollection();
 	$self->soapError($call) if defined $call->fault();
 	
 	return $self->attrFromList( $call->dataof('//GetListCollectionResult/Lists/List') );
@@ -82,7 +129,7 @@ sub GetList
 
 	my $in_listName = SOAP::Data::name('listName' => $listName);
 
-	my $call = $self->{soap}->GetList($in_listName);
+	my $call = $self->getListsEndpoint()->GetList($in_listName);
 	$self->soapError($call) if defined $call->fault();
 
 	#return $self->attrFromList( $call->dataof('//GetListItemsResult/listitems/data/row') );
@@ -105,11 +152,12 @@ sub GetListItems
 	my $in_viewName = SOAP::Data::name('viewName' => $viewName);
 	my $in_rowLimit = SOAP::Data::name('rowLimit' => $rowLimit);
 
-	my $call = $self->{soap}->GetListItems($in_listName, $in_viewName, $in_rowLimit);
+	my $call = $self->getListsEndpoint()->GetListItems($in_listName, $in_viewName, $in_rowLimit);
 	$self->soapError($call) if defined $call->fault();
 
 	return $self->attrFromList( $call->dataof('//GetListItemsResult/listitems/data/row') );
 }
+
 
 # It's kind of annoying to have to call attr on every list item by hand, so let's do it
 # in a handy function (There may later turn out to be a reason to look elsewhere than in attr
