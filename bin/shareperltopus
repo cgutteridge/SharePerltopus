@@ -1,4 +1,4 @@
-#!/usr/bin/perl -I/var/wwwsites/tools/SharePerltopus/perl-lib
+#!/usr/bin/perl -Iperl-lib
 
 use strict;
 use warnings;
@@ -24,6 +24,12 @@ my %opts = SharePoint::CommandLine->get_options(
 );
 my( $action ) = @ARGV;
 
+if( !defined $action )
+{
+	print STDERR usage();	
+	die "No action specified";
+}
+
 binmode( STDOUT, ":utf8" );
 
 $opts{"fields-list"} = [];
@@ -40,11 +46,7 @@ if( $opts{fields} ne "" )
 
 my $spc = new SharePoint::Connection( %opts );
 
-if( !defined $action )
-{
-	die "No action specified";
-}
-elsif( $action eq "list-to-tsv" )
+if( $action eq "list-to-tsv" )
 {
 	action_list_to_tsv( $spc, %opts );
 }
@@ -203,5 +205,3 @@ sub action_list_to_tsv
 		print join( "\t", @values )."\n";
 	}
 }
-
-
