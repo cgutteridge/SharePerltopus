@@ -54,6 +54,10 @@ elsif( $action eq "list-dump" )
 {
 	action_list_dump( $spc, %opts );
 }
+elsif( $action eq "calendar-to-ical" )
+{
+	action_calendar_to_ical( $spc, %opts );
+}
 elsif( $action eq "collections" )
 {
 	action_collections( $spc, %opts );
@@ -221,4 +225,40 @@ sub action_list_to_tsv
 		}
 		print join( "\t", @values )."\n";
 	}
+}
+
+sub action_calendar_to_ical
+{
+	my( $spc, %opts ) = @_;
+
+	if( $opts{list} eq "" ) { die "list_to_tsv needs --list to be set"; }
+	my $map = {};
+	my $listinfo = $spc->GetList( $opts{list} );
+	foreach my $field ( @{$listinfo->{fields}} )
+	{
+		$map->{$field->{DisplayName}} = "ows_".$field->{StaticName};
+	}
+	if( $opts{view} eq "" ) { delete $opts{view}; }
+
+	my @items = $spc->GetCalendarEvents( $opts{list}, $opts{view} );
+
+	my @fields = ("Start Time", "End Time", "Title", "Description", "Unique Id");
+
+	print "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//SOTON//Sharepoint Calendar Fields//EN\r\nMETHOD:PUBLISH\r\nX-WR-CALNAME:GigCalendar for Southampton\r\nX-WR-CALDESC:GigCalendar for Southampton\r\nX-WR-TIMEZONE:Europe/London\r\n";
+
+	foreach my $item ( @items )
+	{
+		print "BEGIN:VEVENT\r\n";
+		my @start = split(/[- :]/, $item->{$map->{'Start Time'}});
+		printf( "DTSTART;TZID=Europe/London:%04d%02d%02dT%02d%02d%02d\r\n", @start );
+		my @end = split(/[- :]/, $item->{$map->{'End Time'}});
+		printf( "DTEND;TZID=Europe/London:%04d%02d%02dT%02d%02d%02d\r\n", @end);
+		if ( !defined($item->{$map->{'Title'}}) ) { $item->{$map->{'Title'}} = "No Summary"; }
+		print "SUMMARY:".$item->{$map->{'Title'}}."\r\n";
+		if ( !defined($item->{$map->{'Description'}}) ) { $item->{$map->{'Description'}} = "No Description"; }
+		print "DESCRIPTION:".$item->{$map->{'Description'}}."\r\n";
+		print "END:VEVENT\r\n";
+	}
+
+	print "END:VCALENDAR\r\n";
 }

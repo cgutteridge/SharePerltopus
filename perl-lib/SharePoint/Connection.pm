@@ -158,6 +158,24 @@ sub GetListItems
 	return $self->attrFromList( $call->dataof('//GetListItemsResult/listitems/data/row') );
 }
 
+# nb. listName is a {234234} style ID!
+sub GetCalendarEvents
+{
+	my( $self, $listName, $viewName, $rowLimit ) = @_;
+
+	$viewName = '' unless defined $viewName;
+	$rowLimit = 99999 unless defined $rowLimit;
+
+	my $in_listName = SOAP::Data::name('listName' => $listName);
+	my $in_viewName = SOAP::Data::name('viewName' => $viewName);
+	my $in_rowLimit = SOAP::Data::name('rowLimit' => $rowLimit);
+	my $query_options = SOAP::Data::name('queryOptions' => \SOAP::Data->name("QueryOptions" => \SOAP::Data->name("ExpandRecurrence", "TRUE")));
+
+	my $call = $self->getListsEndpoint()->GetListItems($in_listName, $in_viewName, $in_rowLimit, $query_options);
+	$self->soapError($call) if defined $call->fault();
+
+	return $self->attrFromList( $call->dataof('//GetListItemsResult/listitems/data/row') );
+}
 
 # It's kind of annoying to have to call attr on every list item by hand, so let's do it
 # in a handy function (There may later turn out to be a reason to look elsewhere than in attr
