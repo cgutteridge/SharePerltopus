@@ -12,6 +12,7 @@ my %opts = SharePoint::CommandLine->get_options(
 		list=>"",
 		view=>"",
 		item=>"",
+		group=>"",
 		url=>"",
 	}, 
 	{ 
@@ -19,6 +20,7 @@ my %opts = SharePoint::CommandLine->get_options(
 		"list:s" => "list",
 		"view:s" => "view",
 		"item:s" => "item",
+		"group:s" => "group",
 		"url:s" => "url",
 	} 
 );
@@ -78,6 +80,14 @@ elsif( $action eq "attachment-collection" )
 {
 	action_attachment_collection( $spc, %opts );
 }
+elsif( $action eq "group-collection" )
+{
+	action_group_collection( $spc, %opts );
+}
+elsif( $action eq "group-members" )
+{
+	action_group_members( $spc, %opts );
+}
 else
 {
 	print STDERR "Unknown action: $action\n\n";
@@ -90,11 +100,16 @@ exit;
 sub usage
 {
 	return <<END
+All commands also require --credentials 
+
 shareperltopus collections --site <site-url>
 shareperltopus list-info --site <site-url> --list <list-id>
 shareperltopus list-dump --site <site-url> --list <list-id> [--view <view>]
 shareperltopus list-fields --site <site-url> --list <list-id> 
 shareperltopus list-to-tsv --site <site-url> --list <list-id> [--fields-file <file>] [--view <view>]
+
+shareperltopus group-collection --site <site-url> 
+shareperltopus group-members --site <site-url> --group <group-name>
 END
 }
 
@@ -102,11 +117,34 @@ sub action_list_info
 {
 	my( $spc, %opts ) = @_;
 
-	if( $opts{list} eq "" ) { die "list_to_tsv needs --list to be set"; }
+	if( $opts{list} eq "" ) { die "list-to-tsv needs --list to be set"; }
 	my $map = {};
 	my $listinfo = $spc->GetList( $opts{list} );
 	
 	print Dumper( $listinfo );
+}
+
+sub action_group_collection
+{
+	my( $spc, %opts ) = @_;
+
+	my @result = $spc->GetGroupCollectionFromSite();
+	foreach my $data ( sort { $a->{ID} <=> $b->{ID} } @result) 
+	{
+		print $data->{ID}." - ".$data->{Name}."\n";
+	}
+}
+sub action_group_members
+{
+	my( $spc, %opts ) = @_;
+
+	if( $opts{group} eq "" ) { die "group-members needs --group to be set"; }
+
+	my @result = $spc->GetUserCollectionFromGroup( $opts{group} );
+	foreach my $data ( @result) 
+	{
+		print $data->{LoginName}." - ".$data->{Email}." - ".$data->{Name}."\n";
+	}
 }
 
 sub action_collections
@@ -114,7 +152,7 @@ sub action_collections
 	my( $spc, %opts ) = @_;
 
 	my @result = $spc->GetListCollection();
-	foreach my $data (@result) 
+	foreach my $data ( @result ) 
 	{
 		print $data->{ID}." - ".$data->{Title}."\n";
 	}
@@ -124,7 +162,7 @@ sub action_get_item
 {
 	my( $spc, %opts ) = @_;
 
-	if( $opts{url} eq "" ) { die "attachment_collection needs --url to be set"; }
+	if( $opts{url} eq "" ) { die "attachment-collection needs --url to be set"; }
 
 	my $item = $spc->GetItem( $opts{url} );
 	print $item;
@@ -134,8 +172,8 @@ sub action_attachment_collection
 {
 	my( $spc, %opts ) = @_;
 
-	if( $opts{list} eq "" ) { die "attachment_collection needs --list to be set"; }
-	if( $opts{item} eq "" ) { die "attachment_collection needs --item to be set"; }
+	if( $opts{list} eq "" ) { die "attachment-collection needs --list to be set"; }
+	if( $opts{item} eq "" ) { die "attachment-collection needs --item to be set"; }
 	my $map = {};
 	my $listinfo = $spc->GetAttachmentCollection( $opts{list}, $opts{item} );
 }
@@ -144,7 +182,7 @@ sub action_list_fields
 {
 	my( $spc, %opts ) = @_;
 
-	if( $opts{list} eq "" ) { die "list_fields needs --list to be set"; }
+	if( $opts{list} eq "" ) { die "list-fields needs --list to be set"; }
 	my $map = {};
 	my $listinfo = spc->GetList( $opts{list} );
 	foreach my $field ( @{$listinfo->{fields}} )
@@ -157,7 +195,7 @@ sub action_list_dump
 {
 	my( $spc, %opts ) = @_;
 
-	if( $opts{list} eq "" ) { die "list_to_tsv needs --list to be set"; }
+	if( $opts{list} eq "" ) { die "list-to-tsv needs --list to be set"; }
 	my $map = {};
 	
 	if( $opts{view} eq "" ) { delete $opts{view}; }
@@ -169,7 +207,7 @@ sub action_list_to_tsv
 {
 	my( $spc, %opts ) = @_;
 
-	if( $opts{list} eq "" ) { die "list_to_tsv needs --list to be set"; }
+	if( $opts{list} eq "" ) { die "list-to-tsv needs --list to be set"; }
 	my $map = {};
 	my $listinfo = $spc->GetList( $opts{list} );
 	my $formats = {};
