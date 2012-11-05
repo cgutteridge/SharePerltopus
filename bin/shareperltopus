@@ -1,7 +1,11 @@
-#!/usr/bin/perl -I/var/wwwsites/tools/SharePerltopus/perl-lib
+#!/usr/bin/perl 
 
 use strict;
 use warnings;
+
+use FindBin;
+use lib "$FindBin::Bin/../perl-lib";
+
 use Data::Dumper;
 use SharePoint::Connection;
 use SharePoint::CommandLine;
