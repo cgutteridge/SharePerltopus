@@ -190,7 +190,7 @@ sub action_list_to_tsv
 			# mailto:hs8@soton.ac.uk, hs8@soton.ac.uk
 			if( $formats->{$k} eq "Hyperlink" )
 			{
-				$v=~s/^[^,]*,//;
+				$v=~s/^([^,]*),.*$/$1/;
 			}
 
 			$cells->{$name} = $v;
@@ -204,4 +204,5 @@ sub action_list_to_tsv
 		}
 		print join( "\t", @values )."\n";
 	}
+#print Dumper( $formats );
 }
