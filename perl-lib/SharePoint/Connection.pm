@@ -42,6 +42,20 @@ sub new
 	return $self;
 }
 
+sub getUserGroupEndpoint
+{
+	my( $self ) = @_;
+
+	if( !defined $self->{soap}->{usergroup} )
+	{
+		my $endpoint = $self->{opts}->{site}."/_vti_bin/usergroup.asmx";
+		$self->{soap}->{usergroup} = SOAP::Lite->proxy( $endpoint, keep_alive => 1);
+		$self->{soap}->{usergroup}->uri("http://schemas.microsoft.com/sharepoint/soap/directory/");
+	}
+
+	return $self->{soap}->{usergroup};
+}
+
 sub getListsEndpoint
 {
 	my( $self ) = @_;
@@ -83,7 +97,11 @@ sub soapError
 {
 	my( $self, $call ) = @_;
 
-	my $msg = $call->faultstring().": ".$call->faultdetail()->{errorstring};
+	my $msg = $call->faultstring().": ";
+	if( $call->faultdetail() ne "" )
+	{
+		$msg.=$call->faultdetail()->{errorstring};
+	}
 	return $self->error( $msg );
 }
 
@@ -158,6 +176,24 @@ sub GetListItems
 	return $self->attrFromList( $call->dataof('//GetListItemsResult/listitems/data/row') );
 }
 
+# nb. listName is a {234234} style ID!
+sub GetCalendarEvents
+{
+	my( $self, $listName, $viewName, $rowLimit ) = @_;
+
+	$viewName = '' unless defined $viewName;
+	$rowLimit = 99999 unless defined $rowLimit;
+
+	my $in_listName = SOAP::Data::name('listName' => $listName);
+	my $in_viewName = SOAP::Data::name('viewName' => $viewName);
+	my $in_rowLimit = SOAP::Data::name('rowLimit' => $rowLimit);
+	my $query_options = SOAP::Data::name('queryOptions' => \SOAP::Data->name("QueryOptions" => \SOAP::Data->name("ExpandRecurrence", "TRUE")));
+
+	my $call = $self->getListsEndpoint()->GetListItems($in_listName, $in_viewName, $in_rowLimit, $query_options);
+	$self->soapError($call) if defined $call->fault();
+
+	return $self->attrFromList( $call->dataof('//GetListItemsResult/listitems/data/row') );
+}
 
 # It's kind of annoying to have to call attr on every list item by hand, so let's do it
 # in a handy function (There may later turn out to be a reason to look elsewhere than in attr
@@ -173,5 +209,29 @@ sub attrFromList
 	}
 	return @r;
 }
+
+######### Groups
+
+sub GetGroupCollectionFromSite
+{
+	my( $self ) = @_;
+	
+	my $call = $self->getUserGroupEndpoint()->GetGroupCollectionFromSite();
+	$self->soapError($call) if defined $call->fault();
+	
+	return $self->attrFromList( $call->dataof('//GetGroupCollectionFromSite/Groups/Group') );
+}
+
+sub GetUserCollectionFromGroup
+{
+	my( $self, $groupName ) = @_;
+	
+	my $in_groupName = SOAP::Data::name( 'groupName' => $groupName );
+	my $call = $self->getUserGroupEndpoint()->GetUserCollectionFromGroup( $in_groupName );
+	$self->soapError($call) if defined $call->fault();
+	
+	return $self->attrFromList( $call->dataof('//GetUserCollectionFromGroup/Users/User') );
+}
+
 
 1;

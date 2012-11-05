@@ -16,6 +16,7 @@ my %opts = SharePoint::CommandLine->get_options(
 		list=>"",
 		view=>"",
 		item=>"",
+		group=>"",
 		url=>"",
 	}, 
 	{ 
@@ -23,10 +24,17 @@ my %opts = SharePoint::CommandLine->get_options(
 		"list:s" => "list",
 		"view:s" => "view",
 		"item:s" => "item",
+		"group:s" => "group",
 		"url:s" => "url",
 	} 
 );
 my( $action ) = @ARGV;
+
+if( !defined $action )
+{
+	print STDERR usage();	
+	die "No action specified";
+}
 
 binmode( STDOUT, ":utf8" );
 
@@ -44,13 +52,17 @@ if( $opts{fields} ne "" )
 
 my $spc = new SharePoint::Connection( %opts );
 
-if( !defined $action )
-{
-	die "No action specified";
-}
-elsif( $action eq "list-to-tsv" )
+if( $action eq "list-to-tsv" )
 {
 	action_list_to_tsv( $spc, %opts );
+}
+elsif( $action eq "list-dump" )
+{
+	action_list_dump( $spc, %opts );
+}
+elsif( $action eq "calendar-to-ical" )
+{
+	action_calendar_to_ical( $spc, %opts );
 }
 elsif( $action eq "collections" )
 {
@@ -72,6 +84,14 @@ elsif( $action eq "attachment-collection" )
 {
 	action_attachment_collection( $spc, %opts );
 }
+elsif( $action eq "group-collection" )
+{
+	action_group_collection( $spc, %opts );
+}
+elsif( $action eq "group-members" )
+{
+	action_group_members( $spc, %opts );
+}
 else
 {
 	print STDERR "Unknown action: $action\n\n";
@@ -84,10 +104,16 @@ exit;
 sub usage
 {
 	return <<END
+All commands also require --credentials 
+
 shareperltopus collections --site <site-url>
 shareperltopus list-info --site <site-url> --list <list-id>
+shareperltopus list-dump --site <site-url> --list <list-id> [--view <view>]
 shareperltopus list-fields --site <site-url> --list <list-id> 
 shareperltopus list-to-tsv --site <site-url> --list <list-id> [--fields-file <file>] [--view <view>]
+
+shareperltopus group-collection --site <site-url> 
+shareperltopus group-members --site <site-url> --group <group-name>
 END
 }
 
@@ -95,11 +121,34 @@ sub action_list_info
 {
 	my( $spc, %opts ) = @_;
 
-	if( $opts{list} eq "" ) { die "list_to_tsv needs --list to be set"; }
+	if( $opts{list} eq "" ) { die "list-to-tsv needs --list to be set"; }
 	my $map = {};
 	my $listinfo = $spc->GetList( $opts{list} );
 	
 	print Dumper( $listinfo );
+}
+
+sub action_group_collection
+{
+	my( $spc, %opts ) = @_;
+
+	my @result = $spc->GetGroupCollectionFromSite();
+	foreach my $data ( sort { $a->{ID} <=> $b->{ID} } @result) 
+	{
+		print $data->{ID}." - ".$data->{Name}."\n";
+	}
+}
+sub action_group_members
+{
+	my( $spc, %opts ) = @_;
+
+	if( $opts{group} eq "" ) { die "group-members needs --group to be set"; }
+
+	my @result = $spc->GetUserCollectionFromGroup( $opts{group} );
+	foreach my $data ( @result) 
+	{
+		print $data->{LoginName}." - ".$data->{Email}." - ".$data->{Name}."\n";
+	}
 }
 
 sub action_collections
@@ -107,7 +156,7 @@ sub action_collections
 	my( $spc, %opts ) = @_;
 
 	my @result = $spc->GetListCollection();
-	foreach my $data (@result) 
+	foreach my $data ( @result ) 
 	{
 		print $data->{ID}." - ".$data->{Title}."\n";
 	}
@@ -117,7 +166,7 @@ sub action_get_item
 {
 	my( $spc, %opts ) = @_;
 
-	if( $opts{url} eq "" ) { die "attachment_collection needs --url to be set"; }
+	if( $opts{url} eq "" ) { die "attachment-collection needs --url to be set"; }
 
 	my $item = $spc->GetItem( $opts{url} );
 	print $item;
@@ -127,8 +176,8 @@ sub action_attachment_collection
 {
 	my( $spc, %opts ) = @_;
 
-	if( $opts{list} eq "" ) { die "attachment_collection needs --list to be set"; }
-	if( $opts{item} eq "" ) { die "attachment_collection needs --item to be set"; }
+	if( $opts{list} eq "" ) { die "attachment-collection needs --list to be set"; }
+	if( $opts{item} eq "" ) { die "attachment-collection needs --item to be set"; }
 	my $map = {};
 	my $listinfo = $spc->GetAttachmentCollection( $opts{list}, $opts{item} );
 }
@@ -137,7 +186,7 @@ sub action_list_fields
 {
 	my( $spc, %opts ) = @_;
 
-	if( $opts{list} eq "" ) { die "list_fields needs --list to be set"; }
+	if( $opts{list} eq "" ) { die "list-fields needs --list to be set"; }
 	my $map = {};
 	my $listinfo = spc->GetList( $opts{list} );
 	foreach my $field ( @{$listinfo->{fields}} )
@@ -146,11 +195,23 @@ sub action_list_fields
 	}
 }
 
+sub action_list_dump
+{
+	my( $spc, %opts ) = @_;
+
+	if( $opts{list} eq "" ) { die "list-to-tsv needs --list to be set"; }
+	my $map = {};
+	
+	if( $opts{view} eq "" ) { delete $opts{view}; }
+	my @items = $spc->GetListItems( $opts{list}, $opts{view} );
+	print Dumper(\@items);
+}
+
 sub action_list_to_tsv
 {
 	my( $spc, %opts ) = @_;
 
-	if( $opts{list} eq "" ) { die "list_to_tsv needs --list to be set"; }
+	if( $opts{list} eq "" ) { die "list-to-tsv needs --list to be set"; }
 	my $map = {};
 	my $listinfo = $spc->GetList( $opts{list} );
 	my $formats = {};
@@ -192,7 +253,7 @@ sub action_list_to_tsv
 			# mailto:hs8@soton.ac.uk, hs8@soton.ac.uk
 			if( $formats->{$k} eq "Hyperlink" )
 			{
-				$v=~s/^[^,]*,//;
+				$v=~s/^([^,]*),.*$/$1/;
 			}
 
 			$cells->{$name} = $v;
@@ -206,6 +267,41 @@ sub action_list_to_tsv
 		}
 		print join( "\t", @values )."\n";
 	}
+#print Dumper( $formats );
 }
 
+sub action_calendar_to_ical
+{
+	my( $spc, %opts ) = @_;
 
+	if( $opts{list} eq "" ) { die "list_to_tsv needs --list to be set"; }
+	my $map = {};
+	my $listinfo = $spc->GetList( $opts{list} );
+	foreach my $field ( @{$listinfo->{fields}} )
+	{
+		$map->{$field->{DisplayName}} = "ows_".$field->{StaticName};
+	}
+	if( $opts{view} eq "" ) { delete $opts{view}; }
+
+	my @items = $spc->GetCalendarEvents( $opts{list}, $opts{view} );
+
+	my @fields = ("Start Time", "End Time", "Title", "Description", "Unique Id");
+
+	print "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//SOTON//Sharepoint Calendar Fields//EN\r\nMETHOD:PUBLISH\r\nX-WR-CALNAME:GigCalendar for Southampton\r\nX-WR-CALDESC:GigCalendar for Southampton\r\nX-WR-TIMEZONE:Europe/London\r\n";
+
+	foreach my $item ( @items )
+	{
+		print "BEGIN:VEVENT\r\n";
+		my @start = split(/[- :]/, $item->{$map->{'Start Time'}});
+		printf( "DTSTART;TZID=Europe/London:%04d%02d%02dT%02d%02d%02d\r\n", @start );
+		my @end = split(/[- :]/, $item->{$map->{'End Time'}});
+		printf( "DTEND;TZID=Europe/London:%04d%02d%02dT%02d%02d%02d\r\n", @end);
+		if ( !defined($item->{$map->{'Title'}}) ) { $item->{$map->{'Title'}} = "No Summary"; }
+		print "SUMMARY:".$item->{$map->{'Title'}}."\r\n";
+		if ( !defined($item->{$map->{'Description'}}) ) { $item->{$map->{'Description'}} = "No Description"; }
+		print "DESCRIPTION:".$item->{$map->{'Description'}}."\r\n";
+		print "END:VEVENT\r\n";
+	}
+
+	print "END:VCALENDAR\r\n";
+}
