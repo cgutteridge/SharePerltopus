@@ -84,6 +84,19 @@ sub getCopyEndpoint
 	return $self->{soap}->{copy};
 }
 
+sub getWebsEndpoint
+{
+	my( $self ) = @_;
+
+	if( !defined $self->{soap}->{webs} )
+	{
+		my $endpoint = $self->{opts}->{site}."/_vti_bin/webs.asmx";
+		$self->{soap}->{webs} = SOAP::Lite->proxy( $endpoint, keep_alive => 1);
+		$self->{soap}->{webs}->uri("http://schemas.microsoft.com/sharepoint/soap/");
+	}
+
+	return $self->{soap}->{webs};
+}
 
 sub error
 {
@@ -128,6 +141,16 @@ sub GetAttachmentCollection
 	$self->soapError($call) if defined $call->fault();
 	
 	return $self->attrFromList( $call->dataof('//GetAttachmentCollectionResponse' ) );
+}
+
+sub GetWebCollection
+{
+	my( $self ) = @_;
+	
+	my $call = $self->getWebsEndpoint()->GetWebCollection();
+	$self->soapError($call) if defined $call->fault();
+	
+	return $self->attrFromList( $call->dataof('//GetWebCollectionResult/Webs/Web') );
 }
 
 sub GetListCollection
