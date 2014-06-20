@@ -68,6 +68,10 @@ elsif( $action eq "collections" )
 {
 	action_collections( $spc, %opts );
 }
+elsif( $action eq "webs" )
+{
+	action_webs( $spc, %opts );
+}
 elsif( $action eq "list-info" )
 {
 	action_list_info( $spc, %opts );
@@ -107,6 +111,7 @@ sub usage
 All commands also require --credentials 
 
 shareperltopus collections --site <site-url>
+shareperltopus webs --site <site-url>
 shareperltopus list-info --site <site-url> --list <list-id>
 shareperltopus list-dump --site <site-url> --list <list-id> [--view <view>]
 shareperltopus list-fields --site <site-url> --list <list-id> 
@@ -159,6 +164,17 @@ sub action_collections
 	foreach my $data ( @result ) 
 	{
 		print $data->{ID}." - ".$data->{Title}."\n";
+	}
+}
+
+sub action_webs
+{
+	my( $spc, %opts ) = @_;
+
+	my @result = $spc->GetWebCollection();
+	foreach my $data ( @result ) 
+	{
+		print $data->{Url}." - ".$data->{Title}."\n";
 	}
 }
 
