@@ -239,7 +239,9 @@ sub action_list_to_tsv
 		@fields = sort keys %$f;
 	}
 	
-	print join( "\t", @fields )."\n";
+	my $output = join( "\t", @fields );
+	$output =~ s/\n/\\n/g;
+	print $output."\n";
 	foreach my $item ( @items )
 	{
 		my $cells = {};
@@ -265,7 +267,9 @@ sub action_list_to_tsv
 			$v = "" unless defined $v;
 			push @values, $v;
 		}
-		print join( "\t", @values )."\n";
+		my $output = join( "\t", @values );
+		$output =~ s/\n/\\n/g;
+		print $output."\n";
 	}
 #print Dumper( $formats );
 }
