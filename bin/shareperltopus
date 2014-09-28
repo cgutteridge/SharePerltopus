@@ -7,6 +7,7 @@ use FindBin;
 use lib "$FindBin::Bin/../perl-lib";
 
 use Data::Dumper;
+use Time::Local;
 use SharePoint::Connection;
 use SharePoint::CommandLine;
 
@@ -18,6 +19,7 @@ my %opts = SharePoint::CommandLine->get_options(
 		item=>"",
 		group=>"",
 		url=>"",
+		title=>"",
 	}, 
 	{ 
 		"fields-file:s" => "fields",
@@ -26,6 +28,7 @@ my %opts = SharePoint::CommandLine->get_options(
 		"item:s" => "item",
 		"group:s" => "group",
 		"url:s" => "url",
+		"title:s" => "title",
 	} 
 );
 my( $action ) = @ARGV;
@@ -116,6 +119,7 @@ shareperltopus list-info --site <site-url> --list <list-id>
 shareperltopus list-dump --site <site-url> --list <list-id> [--view <view>]
 shareperltopus list-fields --site <site-url> --list <list-id> 
 shareperltopus list-to-tsv --site <site-url> --list <list-id> [--fields-file <file>] [--view <view>]
+shareperltopus calendar-to-ical --site <site-url> --list <list-id> [--view <view>] [--title <title>]
 
 shareperltopus group-collection --site <site-url> 
 shareperltopus group-members --site <site-url> --group <group-name>
@@ -310,6 +314,7 @@ sub action_calendar_to_ical
 	my @fields = ("Start Time", "End Time", "Title", "Description", "Unique Id");
 
 	my $title = "Sharepoint Calendar";
+	if( $opts{title} ne "" ) { $title=$opts{title}; }
 
 	print "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//SOTON//Sharepoint Calendar Fields//EN\r\nMETHOD:PUBLISH\r\nX-WR-CALNAME:$title\r\nX-WR-CALDESC:$title\r\nX-WR-TIMEZONE:Europe/London\r\n";
 
@@ -317,9 +322,24 @@ sub action_calendar_to_ical
 	{
 		print "BEGIN:VEVENT\r\n";
 		my @start = split(/[- :]/, $item->{$map->{'Start Time'}});
-		printf( "DTSTART;TZID=Europe/London:%04d%02d%02dT%02d%02d%02d\r\n", @start );
 		my @end = split(/[- :]/, $item->{$map->{'End Time'}});
-		printf( "DTEND;TZID=Europe/London:%04d%02d%02dT%02d%02d%02d\r\n", @end);
+		# work out if this is a all day event, which sharepoint
+		# exports as 000000 to 235900. If so make it an ics all day
+		if( $start[3].$start[4].$start[5] eq "000000"
+		 && $end[3].$end[4].$end[5] eq "235900" )
+		{
+			$item->{$map->{'Title'}}.=" **";
+			my $end_date_t = timelocal(0,0,0,$end[2],$end[1]-1,$end[0]-1900);
+			$end_date_t += 24*60*60;
+			my @end_date = localtime( $end_date_t );
+			printf( "DTSTART;TZID=Europe/London;VALUE=DATE:%04d%02d%02d\r\n", @start );
+			printf( "DTEND;TZID=Europe/London;VALUE=DATE:%04d%02d%02d\r\n", $end_date[5]+1900,$end_date[4]+1,$end_date[3]);
+		}
+		else
+		{
+			printf( "DTSTART;TZID=Europe/London:%04d%02d%02dT%02d%02d%02d\r\n", @start );
+			printf( "DTEND;TZID=Europe/London:%04d%02d%02dT%02d%02d%02d\r\n", @end);
+		}
 		if ( !defined($item->{$map->{'Title'}}) ) { $item->{$map->{'Title'}} = "No Summary"; }
 		print "SUMMARY:".$item->{$map->{'Title'}}."\r\n";
 		if ( !defined($item->{$map->{'Description'}}) ) { $item->{$map->{'Description'}} = "No Description"; }
