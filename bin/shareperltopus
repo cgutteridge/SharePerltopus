@@ -328,7 +328,6 @@ sub action_calendar_to_ical
 		if( $start[3].$start[4].$start[5] eq "000000"
 		 && $end[3].$end[4].$end[5] eq "235900" )
 		{
-			$item->{$map->{'Title'}}.=" **";
 			my $end_date_t = timelocal(0,0,0,$end[2],$end[1]-1,$end[0]-1900);
 			$end_date_t += 24*60*60;
 			my @end_date = localtime( $end_date_t );
