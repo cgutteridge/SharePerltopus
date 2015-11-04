@@ -46,8 +46,8 @@ sub get_options
 			$line =~ s/^\s*//;
 			next if $line eq "";
 			next if $line =~ m/^#/;
-			if( !$line =~ m/:/ ) { die( "Bad credentials file '".$opts{credentials}."': Line without expected colon" ); }
-			my($k,$v) = split( /\s*:\s*/, $line, 2 );
+			if( !$line =~ m/[:=]/ ) { die( "Bad credentials file '".$opts{credentials}."': Line without expected equals" ); }
+			my($k,$v) = split( /\s*[:=]\s*/, $line, 2 );
 			$c->{$k} = $v;
 		}
 		if( !defined $c->{username} )
