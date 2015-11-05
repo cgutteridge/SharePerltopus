@@ -379,6 +379,8 @@ sub ListAsTSV
 			{
 				$v=~s/^([^,]*),.*$/$1/;
 			}
+			# obviously tabs are a bad idea in a tsv value
+			$v =~ s/\t/ /g;
 
 			$cells->{$name} = $v;
 		}
