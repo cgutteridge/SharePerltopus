@@ -45,6 +45,7 @@ sub new
 	}
 
 	# There's got to be a better way, but this does appear to work!
+	delete $SOAP::Transport::HTTP::Client::{get_basic_credentials};
 	eval "sub SOAP::Transport::HTTP::Client::get_basic_credentials { return ('$username' => '$opts{password}') };"; 
 	
 	return $self;
