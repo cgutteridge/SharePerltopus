@@ -197,7 +197,7 @@ sub GetListItems
 
 	$viewName = '' unless defined $viewName;
 	$rowLimit = 99999 unless defined $rowLimit;
-print "{{$where}}\n";
+
 	my $in_listName = SOAP::Data::name('listName' => $listName);
 	my $in_viewName = SOAP::Data::name('viewName' => $viewName);
 	my $in_rowLimit = SOAP::Data::name('rowLimit' => $rowLimit);
@@ -298,7 +298,7 @@ sub CalendarAsICAL
 	}
 	# always use real title
 	$map->{"Title"}="ows_Title"; 
-	if( $opts{view} eq "" ) { delete $opts{view}; }
+	if( defined $opts{view} && $opts{view} eq "" ) { delete $opts{view}; }
 
 	my @items = $self->GetCalendarEvents( $opts{list}, $opts{view}, undef, $opts{where} );
 
@@ -357,7 +357,7 @@ sub ListAsTSV
 		$map->{"ows_".$field->{StaticName}} = $field->{DisplayName};
 		$formats->{"ows_".$field->{StaticName}} = $field->{Format} || "none";
 	}
-	if( $opts{view} eq "" ) { delete $opts{view}; }
+	if( defined $opts{view} && $opts{view} eq "" ) { delete $opts{view}; }
 
 	my @items = $self->GetListItems( $opts{list}, $opts{view}, undef, $opts{where} );
 
