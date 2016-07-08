@@ -193,16 +193,24 @@ sub GetList
 # nb. listName is a {234234} style ID!
 sub GetListItems
 {
-	my( $self, $listName, $viewName, $rowLimit ) = @_;
+	my( $self, $listName, $viewName, $rowLimit, $where ) = @_;
 
 	$viewName = '' unless defined $viewName;
 	$rowLimit = 99999 unless defined $rowLimit;
-
+print "{{$where}}\n";
 	my $in_listName = SOAP::Data::name('listName' => $listName);
 	my $in_viewName = SOAP::Data::name('viewName' => $viewName);
 	my $in_rowLimit = SOAP::Data::name('rowLimit' => $rowLimit);
+	my $in_query = undef;
+	if( $where ) 
+	{
+		$in_query = SOAP::Data::name('query' => 
+				\SOAP::Data->name("Query" => 
+					\SOAP::Data->name("Where" =>
+						\SOAP::Data->name( "dummy",  SOAP::Data->type( 'xml'=>$where ) ) ) ) );
+	}
 
-	my $call = $self->getListsEndpoint()->GetListItems($in_listName, $in_viewName, $in_rowLimit);
+	my $call = $self->getListsEndpoint()->GetListItems($in_listName, $in_viewName, $in_query, $in_rowLimit);
 	$self->soapError($call) if defined $call->fault();
 
 	return $self->attrFromList( $call->dataof('//GetListItemsResult/listitems/data/row') );
@@ -211,7 +219,7 @@ sub GetListItems
 # nb. listName is a {234234} style ID!
 sub GetCalendarEvents
 {
-	my( $self, $listName, $viewName, $rowLimit ) = @_;
+	my( $self, $listName, $viewName, $rowLimit, $where ) = @_;
 
 	$viewName = '' unless defined $viewName;
 	$rowLimit = 99999 unless defined $rowLimit;
@@ -219,9 +227,20 @@ sub GetCalendarEvents
 	my $in_listName = SOAP::Data::name('listName' => $listName);
 	my $in_viewName = SOAP::Data::name('viewName' => $viewName);
 	my $in_rowLimit = SOAP::Data::name('rowLimit' => $rowLimit);
-	my $query_options = SOAP::Data::name('queryOptions' => \SOAP::Data->name("QueryOptions" => \SOAP::Data->name("ExpandRecurrence", "TRUE")));
+	my $in_query = SOAP::Data->type( 'xml'=>$where );
+	if( $where ) 
+	{
+		$in_query = SOAP::Data::name('query' => 
+				\SOAP::Data->name("Query" => 
+					\SOAP::Data->name("Where" =>
+						\SOAP::Data->name( "dummy",  SOAP::Data->type( 'xml'=>$where ) ) ) ) );
+	}
 
-	my $call = $self->getListsEndpoint()->GetListItems($in_listName, $in_viewName, $in_rowLimit, $query_options);
+	my $query_options = SOAP::Data::name('queryOptions' => 
+				\SOAP::Data->name("QueryOptions" => 
+					\SOAP::Data->name("ExpandRecurrence", "TRUE")));
+
+	my $call = $self->getListsEndpoint()->GetListItems($in_listName, $in_viewName, $in_query, $in_rowLimit, $query_options);
 	$self->soapError($call) if defined $call->fault();
 
 	return $self->attrFromList( $call->dataof('//GetListItemsResult/listitems/data/row') );
@@ -281,7 +300,7 @@ sub CalendarAsICAL
 	$map->{"Title"}="ows_Title"; 
 	if( $opts{view} eq "" ) { delete $opts{view}; }
 
-	my @items = $self->GetCalendarEvents( $opts{list}, $opts{view} );
+	my @items = $self->GetCalendarEvents( $opts{list}, $opts{view}, undef, $opts{where} );
 
 	my @fields = ("Start Time", "End Time", "Title", "Description", "Unique Id");
 
@@ -340,7 +359,7 @@ sub ListAsTSV
 	}
 	if( $opts{view} eq "" ) { delete $opts{view}; }
 
-	my @items = $self->GetListItems( $opts{list}, $opts{view} );
+	my @items = $self->GetListItems( $opts{list}, $opts{view}, undef, $opts{where} );
 
 	my @fields;
 	if( defined $opts{'fields-list'} )

@@ -16,6 +16,7 @@ my %opts = SharePoint::CommandLine->get_options(
 		fields=>"",
 		list=>"",
 		view=>"",
+		where=>"",
 		item=>"",
 		group=>"",
 		url=>"",
@@ -25,6 +26,7 @@ my %opts = SharePoint::CommandLine->get_options(
 		"fields-file:s" => "fields",
 		"list:s" => "list",
 		"view:s" => "view",
+		"where:s" => "where",
 		"item:s" => "item",
 		"group:s" => "group",
 		"url:s" => "url",
@@ -118,8 +120,8 @@ shareperltopus webs --site <site-url>
 shareperltopus list-info --site <site-url> --list <list-id>
 shareperltopus list-dump --site <site-url> --list <list-id> [--view <view>]
 shareperltopus list-fields --site <site-url> --list <list-id> 
-shareperltopus list-to-tsv --site <site-url> --list <list-id> [--fields-file <file>] [--view <view>]
-shareperltopus calendar-to-ical --site <site-url> --list <list-id> [--view <view>] [--title <title>]
+shareperltopus list-to-tsv --site <site-url> --list <list-id> [--fields-file <file>] [--view <view>] [--where <where>]
+shareperltopus calendar-to-ical --site <site-url> --list <list-id> [--view <view>] [--title <title>] [--where <where>]
 
 shareperltopus group-collection --site <site-url> 
 shareperltopus group-members --site <site-url> --group <group-name>
