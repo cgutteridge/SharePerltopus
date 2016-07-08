@@ -228,17 +228,25 @@ sub GetCalendarEvents
 	my $in_viewName = SOAP::Data::name('viewName' => $viewName);
 	my $in_rowLimit = SOAP::Data::name('rowLimit' => $rowLimit);
 	my $in_query = SOAP::Data->type( 'xml'=>$where );
-	if( $where ) 
+
+        my $overlap = "<DateRangesOverlap><FieldRef Name='EventDate' /><FieldRef Name='EndDate' /><FieldRef Name='RecurrenceID' /><Value Type='DateTime'><Year /></Value></DateRangesOverlap>";
+	if( !$where ) 
 	{
-		$in_query = SOAP::Data::name('query' => 
-				\SOAP::Data->name("Query" => 
-					\SOAP::Data->name("Where" =>
-						\SOAP::Data->name( "dummy",  SOAP::Data->type( 'xml'=>$where ) ) ) ) );
+		$where = $overlap;
 	}
+	else
+	{
+		$where = "<And>$where$overlap</And>";
+	}
+
+	$in_query = SOAP::Data::name('query' => 
+			\SOAP::Data->name("Query" => 
+				\SOAP::Data->name("Where" =>
+					\SOAP::Data->name( "dummy",  SOAP::Data->type( 'xml'=>$where ) ) ) ) );
 
 	my $query_options = SOAP::Data::name('queryOptions' => 
 				\SOAP::Data->name("QueryOptions" => 
-					\SOAP::Data->name("ExpandRecurrence", "TRUE")));
+					\SOAP::Data->name("ExpandRecurrence", SOAP::Data->type( 'xml'=>"<ExpandRecurrence>TRUE</ExpandRecurrence>" ))));
 
 	my $call = $self->getListsEndpoint()->GetListItems($in_listName, $in_viewName, $in_query, $in_rowLimit, $query_options);
 	$self->soapError($call) if defined $call->fault();
