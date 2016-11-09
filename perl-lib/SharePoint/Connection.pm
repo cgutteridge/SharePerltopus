@@ -343,6 +343,7 @@ sub CalendarAsICAL
 		if ( !defined($item->{$map->{'Title'}}) ) { $item->{$map->{'Title'}} = "No Summary"; }
 		push @output, "SUMMARY:".$item->{$map->{'Title'}}."\r\n";
 		if ( !defined($item->{$map->{'Description'}}) ) { $item->{$map->{'Description'}} = "No Description"; }
+		$item->{$map->{'Description'}} =~ s/[\n]/ /g;
 		push @output, "DESCRIPTION:".$item->{$map->{'Description'}}."\r\n";
 		if ( defined($item->{$map->{'Location'}}) ) { push @output, "LOCATION:".$item->{$map->{'Location'}}."\r\n"; }
 		push @output, "END:VEVENT\r\n";
